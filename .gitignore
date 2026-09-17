@@ -1,0 +1,53 @@
+# Build artifacts
+node_modules/
+dist/
+target/
+build/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+*.log
+
+# Tauri
+frontend/src-tauri/target/
+frontend/src-tauri/WixTools/
+frontend/src-tauri/Frameworks/
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml
+
+# Temp
+*.tmp
+*.temp
+/tmp/
