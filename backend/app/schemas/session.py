@@ -44,7 +44,7 @@ class SessionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    user_id: uuid.UUID
+    user_id: uuid.UUID | None
     job_profile_id: uuid.UUID | None
     status: str
     mode: str

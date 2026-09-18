@@ -34,24 +34,30 @@ export const QuestionPanel: React.FC = () => {
     );
   }
 
+  const classification = currentQuestion.classification ?? {
+    category: "unknown",
+    difficulty: null,
+    technology: null,
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.badges}>
         <span style={styles.categoryBadge}>
           {CATEGORY_LABELS[currentQuestion.category] ?? currentQuestion.category}
         </span>
-        {currentQuestion.classification.difficulty && (
+        {classification.difficulty && (
           <span
             style={{
               ...styles.diffBadge,
-              color: DIFFICULTY_COLORS[currentQuestion.classification.difficulty] ?? "#8b949e",
+              color: DIFFICULTY_COLORS[classification.difficulty] ?? "#8b949e",
             }}
           >
-            {currentQuestion.classification.difficulty}
+            {classification.difficulty}
           </span>
         )}
-        {currentQuestion.classification.technology && (
-          <span style={styles.techBadge}>{currentQuestion.classification.technology}</span>
+        {classification.technology && (
+          <span style={styles.techBadge}>{classification.technology}</span>
         )}
         {isGenerating && <span style={styles.generating}>Generating…</span>}
       </div>

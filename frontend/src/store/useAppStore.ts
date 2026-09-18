@@ -61,7 +61,7 @@ export const useAppStore = create<AppState>((set) => ({
   answerDone: null,
   sources: [],
   isGenerating: false,
-  showOverlay: false,
+  showOverlay: true,
   settingsPanelOpen: false,
   history: [],
   currentCode: "",

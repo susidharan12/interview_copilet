@@ -18,7 +18,7 @@ from app.services.detection import QuestionDetector
 from app.services.pipeline import InterviewPipeline
 from app.services.transcription.mock_transcriber import MockTranscriptionService
 from app.services.transcription.openai_transcriber import OpenAITranscriptionService
-from app.services.transcription.protocol import TranscriptionSegment
+from app.services.transcription.protocol import AudioChunk, TranscriptionSegment
 
 router = APIRouter()
 
@@ -38,6 +38,7 @@ class InterviewConnection:
         self.write_lock = asyncio.Lock()
         self.pipeline: InterviewPipeline | None = None
         self.detector = QuestionDetector()
+        self.transcribe_task: asyncio.Task | None = None
 
     async def send(self, event_type: str, payload: dict[str, Any]) -> None:
         async with self.write_lock:
@@ -82,11 +83,11 @@ class InterviewConnection:
         import base64
 
         raw = base64.b64decode(data)
-        segment = TranscriptionSegment(text="", is_final=False)
-        detected = self.detector.feed(segment)  # keep boundary state warm
-        if detected and self.pipeline:
-            result = await self.pipeline.process_question(detected)
-            await self._emit_done(result)
+        self.detector.feed(TranscriptionSegment(text="", is_final=False))  # keep boundary state warm
+        if self.pipeline and self.pipeline.transcriber:
+            await self.pipeline.transcriber.feed_audio(
+                AudioChunk(data=raw, sample_rate=int(payload.get("sample_rate", 16000) or 16000))
+            )
 
     async def _on_audio_stop(self, event: ClientEvent) -> None:
         if self.pipeline and self.pipeline.transcriber:
@@ -95,6 +96,28 @@ class InterviewConnection:
         if final and self.pipeline:
             result = await self.pipeline.process_question(final)
             await self._emit_done(result)
+
+    async def _on_question_text(self, event: ClientEvent) -> None:
+        text = (event.payload.get("text") or "").strip()
+        if not text:
+            await self.send("error", {"code": "empty_question", "message": "Question text is empty", "recoverable": True})
+            return
+        if not self.pipeline:
+            await self.send("error", {"code": "no_pipeline", "message": "Pipeline not ready", "recoverable": True})
+            return
+
+        from app.services.detection import DetectedQuestion
+
+        await self.send("transcription.final", {"text": text, "confidence": 1.0, "speaker": "user", "duration_ms": None})
+        question = DetectedQuestion(
+            text=text,
+            confidence=1.0,
+            starts_at=0.0,
+            ends_at=0.0,
+            boundary_reason="typed",
+        )
+        result = await self.pipeline.process_question(question)
+        await self._emit_done(result)
 
     async def _on_mode_switch(self, event: ClientEvent) -> None:
         from app.schemas.session import AnswerMode
@@ -123,6 +146,18 @@ class InterviewConnection:
                 "latency_ms": result.latency_ms,
             },
         )
+
+
+async def _transcribe_loop(conn: InterviewConnection) -> None:
+    """Consume transcriber segments and feed them into the pipeline."""
+    if not conn.pipeline or not conn.pipeline.transcriber:
+        return
+    async for segment in conn.pipeline.transcriber.stream():
+        if not conn.pipeline:
+            break
+        result = await conn.pipeline.feed_transcript(segment)
+        if result:
+            await conn._emit_done(result)
 
 
 async def _build_connection(
@@ -165,6 +200,7 @@ async def _build_connection(
         )
         conn.pipeline.set_emitter(conn.emitter)
         await transcriber.start()
+    conn.transcribe_task = asyncio.create_task(_transcribe_loop(conn))
     return conn
 
 
@@ -189,5 +225,7 @@ async def interview_ws(websocket: WebSocket, session_id: str) -> None:
     except Exception as exc:
         await conn.send("error", {"code": "internal", "message": str(exc), "recoverable": True})
     finally:
+        if conn.transcribe_task:
+            conn.transcribe_task.cancel()
         if conn.pipeline:
             await conn.pipeline.shutdown()

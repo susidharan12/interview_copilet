@@ -9,11 +9,9 @@ export class InterviewWebSocket {
   private maxReconnects = 15;
   private baseDelayMs = 1000;
   private url: string;
-  private sessionId: string;
   private connected = false;
 
   constructor(sessionId: string, baseUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8000") {
-    this.sessionId = sessionId;
     this.url = `${baseUrl}/ws/interview/${sessionId}`;
   }
 

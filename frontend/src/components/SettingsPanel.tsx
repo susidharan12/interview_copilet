@@ -103,7 +103,7 @@ const styles = {
     background: "rgba(0,0,0,0.5)",
     display: "flex",
     justifyContent: "flex-end",
-    zIndex: 1000,
+    zIndex: 2147483600,
   },
   panel: {
     width: 340,

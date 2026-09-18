@@ -9,7 +9,7 @@ from app.core.config import settings
 redis_client: aioredis.Redis | None = None
 
 
-async def get_redis() -> aioredis.Redis:
+async def get_redis() -> CacheService:
     global redis_client
     if redis_client is None:
         redis_client = aioredis.from_url(
@@ -18,7 +18,7 @@ async def get_redis() -> aioredis.Redis:
             decode_responses=True,
             max_connections=20,
         )
-    return redis_client
+    return CacheService(redis_client)
 
 
 async def close_redis() -> None:
